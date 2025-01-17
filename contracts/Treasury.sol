@@ -24,7 +24,7 @@ contract Treasury is Ownable {
     mapping(address => bool) public authorizedContracts;
 
     // Mapeo para controlar las estadísticas por contrato de juego
-    mapping(address => GameStats) public gameStats;
+    mapping(address =>mapping(address token => GameStats)) public gameStats;
 
 
     // Eventos
@@ -83,7 +83,7 @@ contract Treasury is Ownable {
         IERC20(token).transferFrom(msg.sender, address(this), amount);
 
         // Actualizar estadísticas
-        gameStats[msg.sender].totalDeposits += amount;
+        gameStats[msg.sender][token].totalDeposits += amount;
         totalGlobalDeposits += amount;
 
         emit TokensDeposited(msg.sender, token, amount);
@@ -98,7 +98,7 @@ contract Treasury is Ownable {
         IERC20(token).transfer(recipient, amount);
 
         // Actualizar estadísticas
-        gameStats[msg.sender].totalWithdrawals += amount;
+        gameStats[msg.sender][token].totalWithdrawals += amount;
         totalGlobalWithdrawals += amount;
 
         emit TokensWithdrawn(msg.sender, recipient, token, amount);
