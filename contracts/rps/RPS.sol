@@ -18,11 +18,12 @@ contract RPS is ManagerRPS {
         uint256 points;
         uint256[] betIds;
     }
+
     uint256 public totalBetsGlobal;
     uint256 public totalGlobalWins;
     uint256 public totalValueGlobal;
     uint256 public totalValueGlobalIn;
-    uint public explosionRateGlobal;
+    uint256 public explosionRateGlobal;
 
     mapping(address => bool) public callers;
     mapping(address => uint256) public pendingIdsPerPlayer;
@@ -50,10 +51,10 @@ contract RPS is ManagerRPS {
         bytes calldata signature
     ) external {
         require(side == 0 || side == 1 || side == 2, "Invalid side");
-      
+
         address token = permit.permitted.token;
         uint256 amount = permit.permitted.amount;
-        
+
         address player = msg.sender;
         require(gameIsLive, "Game is not live");
         require(token != address(0), "Token address cannot be 0");
@@ -64,16 +65,16 @@ contract RPS is ManagerRPS {
         require(pendingIdsPerPlayer[player] == 0, "You have a pending bet");
 
         permit2.permitTransferFrom(permit, transferDetails, msg.sender, signature);
-        // treasury.depositTokens(token, amount);
+        treasury.depositTokens(token, amount);
 
-        uint256 betId = bets.length ;
+        uint256 betId = bets.length;
         playerInfo[player].totalBets++;
         playerInfo[player].totalValue += amount;
         playerInfo[player].points += 1 * 200 - 1;
         playerInfo[player].betIds.push(betId + 1);
         pendingIdsPerPlayer[player] = betId;
         totalValueGlobalIn += amount;
-       
+
         emit BetPlaced(betId, player, amount, side, token);
         bets.push(
             Bet({
@@ -104,33 +105,32 @@ contract RPS is ManagerRPS {
         // Handle explosion case
         uint256 exploted = randomNumber % 100;
         if (exploted <= explosionRate) {
-            
             explosionRateGlobal++;
             _handleExplosion(bet, betId);
             return;
         }
-        uint optionOutcome = randomNumber % 3;
+        uint256 optionOutcome = randomNumber % 3;
 
         bool isDraw = bet.choice == optionOutcome;
         bool winResult;
-        
+
         if (!isDraw) {
             totalValueGlobal += bet.amount;
             if (
-                (bet.choice == 0 && optionOutcome == 2) || // Piedra vence Tijera
-                (bet.choice == 1 && optionOutcome == 0) || // Papel vence Piedra
-                (bet.choice == 2 && optionOutcome == 1)    // Tijera vence Papel
+                (bet.choice == 0 && optionOutcome == 2) // Piedra vence Tijera
+                    || (bet.choice == 1 && optionOutcome == 0) // Papel vence Piedra
+                    || (bet.choice == 2 && optionOutcome == 1) // Tijera vence Papel
             ) {
                 winResult = true;
             } else {
                 winResult = false;
             }
-        }else{
+        } else {
             winResult = false;
             bet.isDraw = true;
             optionOutcome = 3;
         }
-       
+
         _finalizeSettlement(bet, betId, winResult, optionOutcome);
     }
 
@@ -138,22 +138,22 @@ contract RPS is ManagerRPS {
         pendingIdsPerPlayer[bet.player] = 0;
         bet.isSettled = true;
         bet.winAmount = uint128(0);
-        uint userChoice = bet.choice;
+        uint256 userChoice = bet.choice;
         uint8 optionOutcome;
-        if(userChoice == 0){
+        if (userChoice == 0) {
             optionOutcome = 1;
-        }else if(userChoice == 1){
+        } else if (userChoice == 1) {
             optionOutcome = 2;
-        }else{
+        } else {
             optionOutcome = 0;
         }
-        
+
         bet.outcome = optionOutcome;
 
         emit BetSettled(betId, bet.player, bet.amount, bet.choice, optionOutcome, 0, bet.token);
     }
 
-    function _finalizeSettlement(Bet storage bet, uint256 betId, bool winResult, uint outcome) private {
+    function _finalizeSettlement(Bet storage bet, uint256 betId, bool winResult, uint256 outcome) private {
         uint256 winnableAmount = bet.amount * 2;
         uint256 winAmount = winResult ? winnableAmount : 0;
 
@@ -167,7 +167,7 @@ contract RPS is ManagerRPS {
             playerInfo[bet.player].totalWins++;
             treasury.withdrawTokens(bet.token, winnableAmount, bet.player);
         }
-        if(outcome == 3){
+        if (outcome == 3) {
             treasury.withdrawTokens(bet.token, bet.amount, bet.player);
             winAmount = bet.amount;
         }
@@ -223,13 +223,15 @@ contract RPS is ManagerRPS {
         return totalValueGlobalIn / bets.length;
     }
 
-    function setTreasury(ITreasury _treasury) public  onlyOwner(){
+    function setTreasury(ITreasury _treasury) public onlyOwner {
         treasury = _treasury;
     }
-    function setApproveTreasury(address token) public  onlyOwner(){
-        IERC20(token).approve(address(treasury), 99999999 * 10 ** 19);
+
+    function setApproveTreasury(address token, uint256 amout) public onlyOwner {
+        IERC20(token).approve(address(treasury), amout);
     }
-    function setPermit2(ISignatureTransfer _permit2) public  onlyOwner(){
-       permit2 = _permit2;
+
+    function setPermit2(ISignatureTransfer _permit2) public onlyOwner {
+        permit2 = _permit2;
     }
 }
